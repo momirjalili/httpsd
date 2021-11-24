@@ -1,4 +1,4 @@
-module github.com/momirjalili/prometheus-http-sd
+module github.com/momirjalili/httpsd
 
 go 1.17
 

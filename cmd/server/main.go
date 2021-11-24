@@ -20,7 +20,7 @@ import (
 
 	"go.etcd.io/etcd/raft/v3/raftpb"
 
-	"github.com/momirjalili/prometheus-http-sd/internal/raft"
+	"github.com/momirjalili/httpsd/internal/raft"
 )
 
 func main() {
