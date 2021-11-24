@@ -1,4 +1,4 @@
-module github.com/momirjalili/prometheus-http-sd/internal/raft
+module github.com/momirjalili/prometheus-http-sd/internal
 
 go 1.17
 

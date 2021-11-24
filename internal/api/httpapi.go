@@ -20,12 +20,13 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/momirjalili/prometheus-http-sd/internal/raft"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 // Handler for a http based key-value store backed by raft
 type httpKVAPI struct {
-	store       *KVStore
+	store       *raft.KVStore
 	confChangeC chan<- raftpb.ConfChange
 }
 
