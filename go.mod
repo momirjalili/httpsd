@@ -1,4 +1,4 @@
-module github.com/momirjalili/prometheus-http-sd.git
+module github.com/momirjalili/prometheus-http-sd
 
 go 1.17
 
@@ -23,7 +23,7 @@ require (
 	go.etcd.io/etcd/raft/v3 v3.5.1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	go.uber.org/zap v1.17.0 // indirect
+	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/sys v0.0.0-20210603081109-ebe580a85c40 // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
 	google.golang.org/protobuf v1.26.0 // indirect

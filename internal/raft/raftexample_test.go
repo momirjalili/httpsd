@@ -67,7 +67,7 @@ func newCluster(n int) *cluster {
 		clus.confChangeC[i] = make(chan raftpb.ConfChange, 1)
 		fn, snapshotTriggeredC := getSnapshotFn()
 		clus.snapshotTriggeredC[i] = snapshotTriggeredC
-		clus.commitC[i], clus.errorC[i], _ = newRaftNode(i+1, clus.peers, false, fn, clus.proposeC[i], clus.confChangeC[i])
+		clus.commitC[i], clus.errorC[i], _ = NewRaftNode(i+1, clus.peers, false, fn, clus.proposeC[i], clus.confChangeC[i])
 	}
 
 	return clus
@@ -173,11 +173,11 @@ func TestPutAndGetKeyValue(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	var kvs *kvstore
-	getSnapshot := func() ([]byte, error) { return kvs.getSnapshot() }
-	commitC, errorC, snapshotterReady := newRaftNode(1, clusters, false, getSnapshot, proposeC, confChangeC)
+	var kvs *KVStore
+	getSnapshot := func() ([]byte, error) { return kvs.GetSnapshot() }
+	commitC, errorC, snapshotterReady := NewRaftNode(1, clusters, false, getSnapshot, proposeC, confChangeC)
 
-	kvs = newKVStore(<-snapshotterReady, proposeC, commitC, errorC)
+	kvs = NewKVStore(<-snapshotterReady, proposeC, commitC, errorC)
 
 	srv := httptest.NewServer(&httpKVAPI{
 		store:       kvs,
@@ -247,7 +247,7 @@ func TestAddNewNode(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	newRaftNode(4, append(clus.peers, newNodeURL), true, nil, proposeC, confChangeC)
+	NewRaftNode(4, append(clus.peers, newNodeURL), true, nil, proposeC, confChangeC)
 
 	go func() {
 		proposeC <- "foo"

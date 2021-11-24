@@ -28,7 +28,7 @@ func Test_kvstore_snapshot(t *testing.T) {
 		t.Fatalf("foo has unexpected value, got %s", v)
 	}
 
-	data, err := s.getSnapshot()
+	data, err := s.GetSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}

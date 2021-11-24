@@ -37,11 +37,11 @@ func main() {
 
 	// raft provides a commit stream for the proposals from the http api
 	var kvs *raft.KVStore
-	getSnapshot := func() ([]byte, error) { return kvs.getSnapshot() }
+	getSnapshot := func() ([]byte, error) { return kvs.GetSnapshot() }
 	commitC, errorC, snapshotterReady := raft.NewRaftNode(*id, strings.Split(*cluster, ","), *join, getSnapshot, proposeC, confChangeC)
 
-	kvs = newKVStore(<-snapshotterReady, proposeC, commitC, errorC)
+	kvs = raft.NewKVStore(<-snapshotterReady, proposeC, commitC, errorC)
 
 	// the key-value http handler will propose updates to raft
-	serveHttpKVAPI(kvs, *kvport, confChangeC, errorC)
+	raft.ServeHttpKVAPI(kvs, *kvport, confChangeC, errorC)
 }

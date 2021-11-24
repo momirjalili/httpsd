@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package raft
 
 import (
 	"io"
@@ -20,13 +20,12 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/momirjalili/prometheus-http-sd/internal/raft"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 // Handler for a http based key-value store backed by raft
 type httpKVAPI struct {
-	store       *raft.KVStore
+	store       *KVStore
 	confChangeC chan<- raftpb.ConfChange
 }
 
@@ -102,7 +101,7 @@ func (h *httpKVAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // serveHttpKVAPI starts a key-value server with a GET/PUT API and listens.
-func serveHttpKVAPI(kv *kvstore, port int, confChangeC chan<- raftpb.ConfChange, errorC <-chan error) {
+func ServeHttpKVAPI(kv *KVStore, port int, confChangeC chan<- raftpb.ConfChange, errorC <-chan error) {
 	srv := http.Server{
 		Addr: ":" + strconv.Itoa(port),
 		Handler: &httpKVAPI{

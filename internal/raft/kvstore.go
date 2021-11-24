@@ -38,7 +38,7 @@ type kv struct {
 	Val string
 }
 
-func newKVStore(snapshotter *snap.Snapshotter, proposeC chan<- string, commitC <-chan *commit, errorC <-chan error) *KVStore {
+func NewKVStore(snapshotter *snap.Snapshotter, proposeC chan<- string, commitC <-chan *commit, errorC <-chan error) *KVStore {
 	s := &KVStore{proposeC: proposeC, kvStore: make(map[string]string), snapshotter: snapshotter}
 	snapshot, err := s.loadSnapshot()
 	if err != nil {
@@ -104,7 +104,7 @@ func (s *KVStore) readCommits(commitC <-chan *commit, errorC <-chan error) {
 	}
 }
 
-func (s *KVStore) getSnapshot() ([]byte, error) {
+func (s *KVStore) GetSnapshot() ([]byte, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return json.Marshal(s.kvStore)
