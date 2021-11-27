@@ -14,34 +14,28 @@
 
 package main
 
-import (
-	"flag"
-	"strings"
-
-	"go.etcd.io/etcd/raft/v3/raftpb"
-
-	"github.com/momirjalili/httpsd/internal/raft"
-)
+import "github.com/momirjalili/httpsd/internal/raft"
 
 func main() {
-	cluster := flag.String("cluster", "http://127.0.0.1:9021", "comma separated cluster peers")
-	id := flag.Int("id", 1, "node ID")
-	kvport := flag.Int("port", 9121, "key-value server port")
-	join := flag.Bool("join", false, "join an existing cluster")
-	flag.Parse()
+	// cluster := flag.String("cluster", "http://127.0.0.1:9021", "comma separated cluster peers")
+	// id := flag.Int("id", 1, "node ID")
+	// kvport := flag.Int("port", 9121, "key-value server port")
+	// join := flag.Bool("join", false, "join an existing cluster")
+	// flag.Parse()
 
-	proposeC := make(chan string)
-	defer close(proposeC)
-	confChangeC := make(chan raftpb.ConfChange)
-	defer close(confChangeC)
+	// proposeC := make(chan string)
+	// defer close(proposeC)
+	// confChangeC := make(chan raftpb.ConfChange)
+	// defer close(confChangeC)
 
-	// raft provides a commit stream for the proposals from the http api
-	var kvs *raft.KVStore
-	getSnapshot := func() ([]byte, error) { return kvs.GetSnapshot() }
-	commitC, errorC, snapshotterReady := raft.NewRaftNode(*id, strings.Split(*cluster, ","), *join, getSnapshot, proposeC, confChangeC)
+	// // raft provides a commit stream for the proposals from the http api
+	// var kvs *raft.KVStore
+	// getSnapshot := func() ([]byte, error) { return kvs.GetSnapshot() }
+	// commitC, errorC, snapshotterReady := raft.NewRaftNode(*id, strings.Split(*cluster, ","), *join, getSnapshot, proposeC, confChangeC)
 
-	kvs = raft.NewKVStore(<-snapshotterReady, proposeC, commitC, errorC)
+	// kvs = raft.NewKVStore(<-snapshotterReady, proposeC, commitC, errorC)
 
 	// the key-value http handler will propose updates to raft
-	raft.ServeHttpKVAPI(kvs, *kvport, confChangeC, errorC)
+	// raft.ServeHttpKVAPI(kvs, *kvport, confChangeC, errorC)
+	raft.ServeHttpSDAPI()
 }

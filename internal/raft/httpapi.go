@@ -1,17 +1,3 @@
-// Copyright 2015 The etcd Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package raft
 
 import (
@@ -20,6 +6,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/asdine/storm/v3"
+	"github.com/asdine/storm/v3/codec/gob"
+	"github.com/gorilla/mux"
+	"github.com/momirjalili/httpsd/internal/api"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
@@ -109,6 +99,7 @@ func ServeHttpKVAPI(kv *KVStore, port int, confChangeC chan<- raftpb.ConfChange,
 			confChangeC: confChangeC,
 		},
 	}
+
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			log.Fatal(err)
@@ -120,3 +111,27 @@ func ServeHttpKVAPI(kv *KVStore, port int, confChangeC chan<- raftpb.ConfChange,
 		log.Fatal(err)
 	}
 }
+
+// serveHttpSDAPI starts a key-value server with a GET/PUT API and listens.
+func ServeHttpSDAPI() {
+
+	router := mux.NewRouter()
+	router.StrictSlash(true)
+	db, err := storm.Open("my.db", storm.Codec(gob.Codec))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	server := api.NewSDServer(db)
+
+	router.HandleFunc("/api/v1/target/", server.GetAllTargetGroupsHandler).Methods("GET")
+	router.HandleFunc("/api/v1/target/", server.CreateTargetGroupHandler).Methods("POST")
+	router.HandleFunc("/api/v1/target/{id:[0-9]+}/", server.GetTargetGroupHandler).Methods("GET")
+	router.HandleFunc("/api/v1/target/{id:[0-9]+}/", server.PutTargetHandler).Methods("PUT")
+	router.HandleFunc("/api/v1/target/{id:[0-9]+}/label/{label_key}", server.PatchTargetGroupLabelHandler).Methods("PATCH")
+	router.HandleFunc("/api/v1/target/{id:[0-9]+}/label/{label_key}", server.DeleteTargetGroupLabelHandler).Methods("DELETE")
+	router.HandleFunc("/api/v1/target/{id:[0-9]+}/label/{server_key}", server.DeleteTargetGroupLabelHandler).Methods("DELETE")
+	http.ListenAndServe(":8080", router)
+}
+
+// func getOrCreateDB() {}
