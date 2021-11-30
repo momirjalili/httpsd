@@ -11,9 +11,7 @@ func NewSet(values []string) *set {
 	s.m = make(map[string]struct{})
 	if len(values) != 0 {
 		for _, v := range values {
-			if v != "" {
-				s.m[v] = exists
-			}
+			s.m[v] = exists
 		}
 	}
 	return s

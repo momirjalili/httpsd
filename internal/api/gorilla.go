@@ -9,22 +9,18 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/asdine/storm/v3"
 	"github.com/gorilla/mux"
 	"github.com/momirjalili/httpsd/internal/httpsd"
+	bolt "go.etcd.io/bbolt"
 )
 
 type SDServer struct {
 	store *httpsd.TargetStore
 }
 
-func NewSDServer(db *storm.DB) *SDServer {
+func NewSDServer(db *bolt.DB) *SDServer {
 	store := httpsd.New(db)
 	return &SDServer{store: store}
-}
-
-type ResponseId struct {
-	Id int `json:"id"`
 }
 
 // renderJSON renders 'v' as JSON and writes it as a response into w.
@@ -41,7 +37,10 @@ func renderJSON(w http.ResponseWriter, v interface{}) {
 // GET /api/v1/target/    return targets list
 func (sd *SDServer) GetAllTargetGroupsHandler(w http.ResponseWriter, req *http.Request) {
 	fmt.Printf("getting all target groups\n")
-	allTGs := sd.store.GetAllTargetGroups()
+	allTGs, err := sd.store.GetAllTargetGroups()
+	if err != nil {
+		fmt.Printf("error getting all targets")
+	}
 	renderJSON(w, allTGs)
 }
 
@@ -67,15 +66,14 @@ func (sd *SDServer) CreateTargetGroupHandler(w http.ResponseWriter, req *http.Re
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	log.Printf("ts is %v", tg)
-	id, err := sd.store.CreateTargetGroup(tg)
-	fmt.Printf("id returned is %d\n ", id)
+	log.Printf("decoded target group  is %v", tg)
+	err = sd.store.CreateTargetGroup(&tg)
+
 	if err != nil {
 		fmt.Printf("error on storing targetgroup %s\n ", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	renderJSON(w, ResponseId{Id: id})
 }
 
 func (sd *SDServer) GetTargetGroupHandler(w http.ResponseWriter, req *http.Request) {
@@ -104,10 +102,11 @@ func (sd *SDServer) PutTargetHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	fmt.Printf("sent data is tat: %+v", tat)
 	// updating targets
-	ntg := httpsd.NewSet(tg.Targets)
-	ntg.Add(tat.Targets)
-	tg.Targets = ntg.Array()
+	// ntg := httpsd.NewSet(tg.Targets)
+	// ntg.Add(tat.Targets)
+	// tg.Targets = ntg.Array()
 
 	// updating labels
 	for k, v := range tat.Labels {
@@ -118,7 +117,7 @@ func (sd *SDServer) PutTargetHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		tg.Labels[k] = v
 	}
-	utg, err := sd.store.UpdateTargetGroup(&tg)
+	utg, err := sd.store.UpdateTargetGroup(tg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -149,7 +148,7 @@ func (sd *SDServer) PatchTargetGroupLabelHandler(w http.ResponseWriter, req *htt
 		return
 	}
 	tg.Labels[label] = v
-	utg, err := sd.store.UpdateTargetGroup(&tg)
+	utg, err := sd.store.UpdateTargetGroup(tg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -170,7 +169,7 @@ func (sd *SDServer) DeleteTargetGroupLabelHandler(w http.ResponseWriter, req *ht
 	// updating labels
 	label := mux.Vars(req)["label_key"]
 	delete(tg.Labels, label)
-	utg, err := sd.store.UpdateTargetGroup(&tg)
+	utg, err := sd.store.UpdateTargetGroup(tg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

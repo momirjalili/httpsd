@@ -6,10 +6,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/asdine/storm/v3"
-	"github.com/asdine/storm/v3/codec/gob"
 	"github.com/gorilla/mux"
 	"github.com/momirjalili/httpsd/internal/api"
+	bolt "go.etcd.io/bbolt"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
@@ -117,7 +116,8 @@ func ServeHttpSDAPI() {
 
 	router := mux.NewRouter()
 	router.StrictSlash(true)
-	db, err := storm.Open("my.db", storm.Codec(gob.Codec))
+	// db, err := storm.Open("my.db", storm.Codec(gob.Codec))
+	db, err := bolt.Open("my.db", 0600, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
