@@ -45,9 +45,40 @@ func New(db *bolt.DB) *TargetStore {
 	return &TargetStore{db: db, rootBucket: "root"}
 }
 
+func (ts *TargetStore) fillTargetGroupData(tgiBkt *bolt.Bucket, tgPtr *TargetGroup) error {
+	if tgiBkt == nil {
+		fmt.Printf("nil bucket \n")
+		return fmt.Errorf("bucket doesn't exist.")
+	}
+	tgiBkt.ForEach(func(k, v []byte) error {
+		if bytes.Equal(k, []byte("label")) {
+			var labels map[string]interface{}
+			json.Unmarshal(v, &labels)
+			tgPtr.Labels = labels
+		} else if v == nil {
+			bkt := tgiBkt.Bucket(k) // targets bucket
+			targets := []Target{}
+			if bkt != nil {
+				bkt.ForEach(func(k, v []byte) error {
+					tid, err := strconv.ParseUint(string(k), 10, 64)
+					if err != nil {
+						return err
+					}
+					target := Target{ID: tid, Addr: string(v)}
+					targets = append(targets, target)
+					return nil
+				})
+				tgPtr.Targets = targets
+			}
+		}
+		return nil
+	})
+	return nil
+}
+
 //GetAllTargets returns a list of all target groups
 func (ts *TargetStore) GetAllTargetGroups() ([]TargetGroup, error) {
-	var tgs []TargetGroup
+	tgs := []TargetGroup{}
 	tx, err := ts.db.Begin(true)
 	if err != nil {
 		return nil, err
@@ -55,7 +86,9 @@ func (ts *TargetStore) GetAllTargetGroups() ([]TargetGroup, error) {
 	defer tx.Rollback()
 	b := tx.Bucket([]byte(ts.rootBucket))
 	tgBkt := b.Bucket([]byte("TargetGroup")) //target group bucket
-
+	if tgBkt == nil {
+		return tgs, nil
+	}
 	tgBkt.ForEach(func(k, v []byte) error {
 		tgid, err := strconv.ParseUint(string(k), 10, 64)
 		if err != nil {
@@ -143,8 +176,26 @@ func (ts *TargetStore) CreateTargetGroup(tg *TargetGroup) error {
 
 //GetTargetGroup returns a target group with ID, returns error if
 //target group doesn't exist
-func (ts *TargetStore) GetTargetGroup(id int) (*TargetGroup, error) {
-	return nil, nil
+func (ts *TargetStore) GetTargetGroup(id uint64) (*TargetGroup, error) {
+	tx, err := ts.db.Begin(true)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	// Retrieve the root bucket.
+	// Assume this has already been created when the store was set up.
+	root := tx.Bucket([]byte(ts.rootBucket))
+	tgBkt := root.Bucket([]byte("TargetGroup"))
+
+	tgiBkt := tgBkt.Bucket([]byte(strconv.FormatUint(id, 10)))
+	fmt.Printf("Target Values is %#v\n", tgiBkt)
+	tgObj := TargetGroup{}
+	err = ts.fillTargetGroupData(tgiBkt, &tgObj)
+	if err != nil {
+		fmt.Printf("returning error from GetTargetGroup")
+		return nil, err
+	}
+	return &tgObj, nil
 }
 
 // UpdateTarget updates port of a target, returns error if

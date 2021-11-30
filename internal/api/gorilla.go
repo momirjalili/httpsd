@@ -18,6 +18,11 @@ type SDServer struct {
 	store *httpsd.TargetStore
 }
 
+type ErrorResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
 func NewSDServer(db *bolt.DB) *SDServer {
 	store := httpsd.New(db)
 	return &SDServer{store: store}
@@ -78,9 +83,13 @@ func (sd *SDServer) CreateTargetGroupHandler(w http.ResponseWriter, req *http.Re
 
 func (sd *SDServer) GetTargetGroupHandler(w http.ResponseWriter, req *http.Request) {
 	log.Printf("getting target group")
-	id, _ := strconv.Atoi(mux.Vars(req)["id"])
+	id, err := strconv.ParseUint(mux.Vars(req)["id"], 10, 64)
+	if err != nil {
+		http.Error(w, "you need to provide id", http.StatusBadRequest)
+	}
 	tg, err := sd.store.GetTargetGroup(id)
 	if err != nil {
+		fmt.Printf("returning %s\n", err.Error())
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -89,7 +98,10 @@ func (sd *SDServer) GetTargetGroupHandler(w http.ResponseWriter, req *http.Reque
 
 func (sd *SDServer) PutTargetHandler(w http.ResponseWriter, req *http.Request) {
 	log.Printf("adding target to target group")
-	id, _ := strconv.Atoi(mux.Vars(req)["id"])
+	id, err := strconv.ParseUint(mux.Vars(req)["id"], 10, 64)
+	if err != nil {
+		http.Error(w, "you need to provide id", http.StatusBadRequest)
+	}
 	tg, err := sd.store.GetTargetGroup(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -128,7 +140,10 @@ func (sd *SDServer) PutTargetHandler(w http.ResponseWriter, req *http.Request) {
 // PATCH  /api/v1/target/<target_group_id>/label/<label_key>     # updates a label in a target group
 func (sd *SDServer) PatchTargetGroupLabelHandler(w http.ResponseWriter, req *http.Request) {
 	log.Printf("patching labels from target group")
-	id, _ := strconv.Atoi(mux.Vars(req)["id"])
+	id, err := strconv.ParseUint(mux.Vars(req)["id"], 10, 64)
+	if err != nil {
+		http.Error(w, "you need to provide id", http.StatusBadRequest)
+	}
 	tg, err := sd.store.GetTargetGroup(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -159,7 +174,10 @@ func (sd *SDServer) PatchTargetGroupLabelHandler(w http.ResponseWriter, req *htt
 // DELTE  /api/v1/target/<target_group_id>/label/<label_key>     # deletes a label in a target group
 func (sd *SDServer) DeleteTargetGroupLabelHandler(w http.ResponseWriter, req *http.Request) {
 	log.Printf("deleting label from target group")
-	id, _ := strconv.Atoi(mux.Vars(req)["id"])
+	id, err := strconv.ParseUint(mux.Vars(req)["id"], 10, 64)
+	if err != nil {
+		http.Error(w, "you need to provide id", http.StatusBadRequest)
+	}
 	tg, err := sd.store.GetTargetGroup(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
