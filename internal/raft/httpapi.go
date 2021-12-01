@@ -132,6 +132,7 @@ func ServeHttpSDAPI() {
 	router.HandleFunc("/api/v1/target/{id:[0-9]+}/label/{label_key}", server.PatchTargetGroupLabelHandler).Methods("PATCH")
 	router.HandleFunc("/api/v1/target/{id:[0-9]+}/label/{label_key}", server.DeleteTargetGroupLabelHandler).Methods("DELETE")
 	router.HandleFunc("/api/v1/target/{id:[0-9]+}/instance/{instance_id}", server.DeleteTargetGroupTargetHandler).Methods("DELETE")
+	router.HandleFunc("/api/v1/discover", server.DiscoverHandler)
 	http.ListenAndServe(":8080", router)
 }
 

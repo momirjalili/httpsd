@@ -39,6 +39,25 @@ func renderJSON(w http.ResponseWriter, v interface{}) {
 	w.Write(js)
 }
 
+func (sd *SDServer) DiscoverHandler(w http.ResponseWriter, req *http.Request) {
+	allTGs, err := sd.store.GetAllTargetGroups()
+	if err != nil {
+		fmt.Printf("error getting all targets")
+	}
+	resp := []map[string]interface{}{}
+
+	for _, tg := range allTGs {
+		targets := []string{}
+		t := map[string]interface{}{"labels": tg.Labels}
+		for _, instance := range tg.Targets {
+			targets = append(targets, instance.Addr)
+		}
+		t["targets"] = targets
+		resp = append(resp, t)
+	}
+	renderJSON(w, resp)
+}
+
 // GET /api/v1/target/    return targets list
 func (sd *SDServer) GetAllTargetGroupsHandler(w http.ResponseWriter, req *http.Request) {
 	fmt.Printf("getting all target groups\n")
