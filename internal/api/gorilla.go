@@ -96,7 +96,7 @@ func (sd *SDServer) GetTargetGroupHandler(w http.ResponseWriter, req *http.Reque
 	renderJSON(w, tg)
 }
 
-func (sd *SDServer) PutTargetHandler(w http.ResponseWriter, req *http.Request) {
+func (sd *SDServer) PutTargetGroupHandler(w http.ResponseWriter, req *http.Request) {
 	log.Printf("adding target to target group")
 	id, err := strconv.ParseUint(mux.Vars(req)["id"], 10, 64)
 	if err != nil {
@@ -181,4 +181,43 @@ func (sd *SDServer) DeleteTargetGroupLabelHandler(w http.ResponseWriter, req *ht
 		return
 	}
 	renderJSON(w, tg)
+}
+
+// DELETE /api/v1/target/<target_group_id>/server/<server_addr>  # deletes a server in a target group
+func (sd *SDServer) DeleteTargetGroupTargetHandler(w http.ResponseWriter, req *http.Request) {
+	log.Printf("deleting server from target group")
+	id, err := strconv.ParseUint(mux.Vars(req)["id"], 10, 64)
+	if err != nil {
+		http.Error(w, "you need to provide id", http.StatusBadRequest)
+	}
+	tg, err := sd.store.GetTargetGroup(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	server_id, err := strconv.ParseUint(mux.Vars(req)["instance_id"], 10, 64)
+	if err != nil {
+		http.Error(w, "you need to provide id", http.StatusBadRequest)
+	}
+	sd.store.DeleteTarget(tg.ID, server_id)
+
+}
+
+// DELETE /api/v1/target/<target_group_id>  # deletes a target group in a target group
+func (sd *SDServer) DeleteTargetGroupHandler(w http.ResponseWriter, req *http.Request) {
+	log.Printf("deleting server from target group")
+	id, err := strconv.ParseUint(mux.Vars(req)["id"], 10, 64)
+	if err != nil {
+		http.Error(w, "you need to provide id", http.StatusBadRequest)
+	}
+	tg, err := sd.store.GetTargetGroup(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "you need to provide id", http.StatusBadRequest)
+	}
+	sd.store.DeleteTargetGroup(tg.ID)
+
 }

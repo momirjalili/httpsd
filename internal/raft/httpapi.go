@@ -127,10 +127,11 @@ func ServeHttpSDAPI() {
 	router.HandleFunc("/api/v1/target/", server.GetAllTargetGroupsHandler).Methods("GET")
 	router.HandleFunc("/api/v1/target/", server.CreateTargetGroupHandler).Methods("POST")
 	router.HandleFunc("/api/v1/target/{id:[0-9]+}/", server.GetTargetGroupHandler).Methods("GET")
-	router.HandleFunc("/api/v1/target/{id:[0-9]+}/", server.PutTargetHandler).Methods("PUT")
+	router.HandleFunc("/api/v1/target/{id:[0-9]+}/", server.PutTargetGroupHandler).Methods("PUT")
+	router.HandleFunc("/api/v1/target/{id:[0-9]+}/", server.DeleteTargetGroupHandler).Methods("DELETE")
 	router.HandleFunc("/api/v1/target/{id:[0-9]+}/label/{label_key}", server.PatchTargetGroupLabelHandler).Methods("PATCH")
 	router.HandleFunc("/api/v1/target/{id:[0-9]+}/label/{label_key}", server.DeleteTargetGroupLabelHandler).Methods("DELETE")
-	router.HandleFunc("/api/v1/target/{id:[0-9]+}/label/{server_key}", server.DeleteTargetGroupLabelHandler).Methods("DELETE")
+	router.HandleFunc("/api/v1/target/{id:[0-9]+}/instance/{instance_id}", server.DeleteTargetGroupTargetHandler).Methods("DELETE")
 	http.ListenAndServe(":8080", router)
 }
 
