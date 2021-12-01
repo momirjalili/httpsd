@@ -108,33 +108,30 @@ func (sd *SDServer) PutTargetHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	dec := json.NewDecoder(req.Body)
-	var tat httpsd.TargetGroup
-	if err := dec.Decode(&tat); err != nil {
+	tat := &httpsd.TargetGroup{ID: tg.ID}
+	if err := dec.Decode(tat); err != nil {
 		fmt.Printf("error decoding %s \n", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	fmt.Printf("sent data is tat: %+v", tat)
-	// updating targets
-	// ntg := httpsd.NewSet(tg.Targets)
-	// ntg.Add(tat.Targets)
-	// tg.Targets = ntg.Array()
+	fmt.Printf("sent data is tat: %+v \n", tat)
 
 	// updating labels
-	for k, v := range tat.Labels {
-		_, ok := tg.Labels[k]
-		if ok {
-			fmt.Printf("label exists\n")
-			http.Error(w, "label already exists. to update use PATCH", http.StatusBadRequest)
-		}
-		tg.Labels[k] = v
-	}
-	utg, err := sd.store.UpdateTargetGroup(tg)
+	// for k, v := range tat.Labels {
+	// 	_, ok := tg.Labels[k]
+	// 	if ok {
+	// 		fmt.Printf("label exists\n")
+	// 		http.Error(w, "label already exists. to update use PATCH", http.StatusBadRequest)
+	// 	}
+	// 	tg.Labels[k] = v
+	// }
+
+	err = sd.store.UpdateTargetGroup(tat)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	renderJSON(w, utg)
+	renderJSON(w, tat)
 }
 
 // PATCH  /api/v1/target/<target_group_id>/label/<label_key>     # updates a label in a target group
@@ -163,12 +160,12 @@ func (sd *SDServer) PatchTargetGroupLabelHandler(w http.ResponseWriter, req *htt
 		return
 	}
 	tg.Labels[label] = v
-	utg, err := sd.store.UpdateTargetGroup(tg)
+	err = sd.store.UpdateTargetGroup(tg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	renderJSON(w, utg)
+	renderJSON(w, tg)
 }
 
 // DELTE  /api/v1/target/<target_group_id>/label/<label_key>     # deletes a label in a target group
@@ -187,10 +184,10 @@ func (sd *SDServer) DeleteTargetGroupLabelHandler(w http.ResponseWriter, req *ht
 	// updating labels
 	label := mux.Vars(req)["label_key"]
 	delete(tg.Labels, label)
-	utg, err := sd.store.UpdateTargetGroup(tg)
+	err = sd.store.UpdateTargetGroup(tg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	renderJSON(w, utg)
+	renderJSON(w, tg)
 }

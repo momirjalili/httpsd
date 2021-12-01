@@ -48,7 +48,7 @@ func New(db *bolt.DB) *TargetStore {
 func (ts *TargetStore) fillTargetGroupData(tgiBkt *bolt.Bucket, tgPtr *TargetGroup) error {
 	if tgiBkt == nil {
 		fmt.Printf("nil bucket \n")
-		return fmt.Errorf("bucket doesn't exist.")
+		return fmt.Errorf("bucket doesn't exist")
 	}
 	tgiBkt.ForEach(func(k, v []byte) error {
 		if bytes.Equal(k, []byte("label")) {
@@ -76,6 +76,15 @@ func (ts *TargetStore) fillTargetGroupData(tgiBkt *bolt.Bucket, tgPtr *TargetGro
 	return nil
 }
 
+func (ts *TargetStore) IPInTargetList(bkt *bolt.Bucket, ip string) bool {
+	exists := false
+	val := bkt.Get([]byte(ip))
+	if val != nil {
+		exists = true
+	}
+	return exists
+}
+
 //GetAllTargets returns a list of all target groups
 func (ts *TargetStore) GetAllTargetGroups() ([]TargetGroup, error) {
 	tgs := []TargetGroup{}
@@ -96,29 +105,7 @@ func (ts *TargetStore) GetAllTargetGroups() ([]TargetGroup, error) {
 		}
 		tgObj := TargetGroup{ID: tgid}
 		tgiBkt := tgBkt.Bucket(k) //target group id bucket
-		tgiBkt.ForEach(func(k, v []byte) error {
-			if bytes.Equal(k, []byte("label")) {
-				var labels map[string]interface{}
-				json.Unmarshal(v, &labels)
-				tgObj.Labels = labels
-			} else if v == nil {
-				bkt := tgiBkt.Bucket(k) // targets bucket
-				targets := []Target{}
-				if bkt != nil {
-					bkt.ForEach(func(k, v []byte) error {
-						tid, err := strconv.ParseUint(string(k), 10, 64)
-						if err != nil {
-							return err
-						}
-						target := Target{ID: tid, Addr: string(v)}
-						targets = append(targets, target)
-						return nil
-					})
-					tgObj.Targets = targets
-				}
-			}
-			return nil
-		})
+		ts.fillTargetGroupData(tgiBkt, &tgObj)
 		tgs = append(tgs, tgObj)
 		return nil
 	})
@@ -164,8 +151,10 @@ func (ts *TargetStore) CreateTargetGroup(tg *TargetGroup) error {
 	if err != nil {
 		return err
 	}
-	for i, tgt := range tg.Targets {
-		targetBkt.Put([]byte(strconv.FormatUint(uint64(i), 10)), []byte(tgt.Addr))
+	for _, tgt := range tg.Targets {
+		id, _ := targetBkt.NextSequence()
+		targetBkt.Put([]byte(strconv.FormatUint(id, 10)), []byte(tgt.Addr))
+		targetBkt.Put([]byte(tgt.Addr), []byte(strconv.FormatUint(uint64(id), 10)))
 	}
 	if err := tx.Commit(); err != nil {
 		return err
@@ -188,8 +177,11 @@ func (ts *TargetStore) GetTargetGroup(id uint64) (*TargetGroup, error) {
 	tgBkt := root.Bucket([]byte("TargetGroup"))
 
 	tgiBkt := tgBkt.Bucket([]byte(strconv.FormatUint(id, 10)))
+	if tgBkt == nil {
+		return nil, fmt.Errorf("no such target group")
+	}
 	fmt.Printf("Target Values is %#v\n", tgiBkt)
-	tgObj := TargetGroup{}
+	tgObj := TargetGroup{ID: id}
 	err = ts.fillTargetGroupData(tgiBkt, &tgObj)
 	if err != nil {
 		fmt.Printf("returning error from GetTargetGroup")
@@ -200,12 +192,95 @@ func (ts *TargetStore) GetTargetGroup(id uint64) (*TargetGroup, error) {
 
 // UpdateTarget updates port of a target, returns error if
 // target group doesn't exist
-func (ts *TargetStore) UpdateTargetGroup(tg *TargetGroup) (*TargetGroup, error) {
-	return nil, nil
+func (ts *TargetStore) UpdateTargetGroup(tg *TargetGroup) error {
+	tx, err := ts.db.Begin(true)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	// Retrieve the root bucket.
+	// Assume this has already been created when the store was set up.
+	root := tx.Bucket([]byte(ts.rootBucket))
+	tgBkt := root.Bucket([]byte("TargetGroup"))
+	tgiBkt := tgBkt.Bucket([]byte(strconv.FormatUint(tg.ID, 10)))
+	tBkt := tgiBkt.Bucket([]byte("target"))
+	if tg.Targets != nil {
+		fmt.Printf("targets are not nil, updating them\n")
+		for _, tgt := range tg.Targets {
+			if ts.IPInTargetList(tBkt, tgt.Addr) {
+				return fmt.Errorf("ip already there")
+			} else {
+				id, _ := tBkt.NextSequence()
+				fmt.Printf("adding %s \n", tgt.Addr)
+				tBkt.Put([]byte(strconv.FormatUint(uint64(id), 10)), []byte(tgt.Addr))
+				tBkt.Put([]byte(tgt.Addr), []byte(strconv.FormatUint(uint64(id), 10)))
+			}
+		}
+	}
+	if tg.Labels != nil {
+		var label map[string]interface{}
+		json.Unmarshal(tgiBkt.Get([]byte("label")), &label)
+		for k := range tg.Labels {
+			label[k] = tg.Labels[k]
+		}
+		fmt.Printf("labels are not nil. updating them\n")
+		if buf, err := json.Marshal(label); err != nil {
+			return err
+		} else if err := tgiBkt.Put([]byte("label"), buf); err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
 }
 
 //DeleteTarget deletes a target from targets of a target group, returns error if
 //target group doesn't exist
-func (ts *TargetStore) DeleteTargetGroup(tg *TargetGroup) error {
+func (ts *TargetStore) DeleteTargetGroup(id uint64) error {
+	tx, err := ts.db.Begin(true)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	// Retrieve the root bucket.
+	// Assume this has already been created when the store was set up.
+	root := tx.Bucket([]byte(ts.rootBucket))
+	tgBkt := root.Bucket([]byte("TargetGroup"))
+	err = tgBkt.DeleteBucket([]byte(strconv.FormatUint(id, 10)))
+	if err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
+
+//DeleteTarget deletes a target from targets of a target group, returns error if
+//target group doesn't exist
+func (ts *TargetStore) DeleteTarget(tgID uint64, tID uint64) error {
+	tx, err := ts.db.Begin(true)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	// Retrieve the root bucket.
+	// Assume this has already been created when the store was set up.
+	root := tx.Bucket([]byte(ts.rootBucket))
+	tgBkt := root.Bucket([]byte("TargetGroup"))
+	tgiBkt := tgBkt.Bucket([]byte(strconv.FormatUint(tgID, 10)))
+	if tgiBkt == nil {
+		return fmt.Errorf("no such target group")
+	}
+	tBkt := tgiBkt.Bucket([]byte("target"))
+	err = tBkt.Delete([]byte(strconv.FormatUint(tID, 10)))
+	if err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
 	return nil
 }
