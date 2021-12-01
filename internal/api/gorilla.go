@@ -116,16 +116,6 @@ func (sd *SDServer) PutTargetHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	fmt.Printf("sent data is tat: %+v \n", tat)
 
-	// updating labels
-	// for k, v := range tat.Labels {
-	// 	_, ok := tg.Labels[k]
-	// 	if ok {
-	// 		fmt.Printf("label exists\n")
-	// 		http.Error(w, "label already exists. to update use PATCH", http.StatusBadRequest)
-	// 	}
-	// 	tg.Labels[k] = v
-	// }
-
 	err = sd.store.UpdateTargetGroup(tat)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -159,12 +149,14 @@ func (sd *SDServer) PatchTargetGroupLabelHandler(w http.ResponseWriter, req *htt
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	tg.Labels[label] = v
-	err = sd.store.UpdateTargetGroup(tg)
+
+	err = sd.store.UpdateTargetGroup(
+		&httpsd.TargetGroup{ID: tg.ID, Labels: map[string]interface{}{label: string(v)}})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	tg.Labels[label] = string(v)
 	renderJSON(w, tg)
 }
 
@@ -183,8 +175,7 @@ func (sd *SDServer) DeleteTargetGroupLabelHandler(w http.ResponseWriter, req *ht
 
 	// updating labels
 	label := mux.Vars(req)["label_key"]
-	delete(tg.Labels, label)
-	err = sd.store.UpdateTargetGroup(tg)
+	err = sd.store.DeleteLabel(tg.ID, label)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

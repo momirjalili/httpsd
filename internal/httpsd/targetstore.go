@@ -223,7 +223,6 @@ func (ts *TargetStore) UpdateTargetGroup(tg *TargetGroup) error {
 		for k := range tg.Labels {
 			label[k] = tg.Labels[k]
 		}
-		fmt.Printf("labels are not nil. updating them\n")
 		if buf, err := json.Marshal(label); err != nil {
 			return err
 		} else if err := tgiBkt.Put([]byte("label"), buf); err != nil {
@@ -277,6 +276,29 @@ func (ts *TargetStore) DeleteTarget(tgID uint64, tID uint64) error {
 	tBkt := tgiBkt.Bucket([]byte("target"))
 	err = tBkt.Delete([]byte(strconv.FormatUint(tID, 10)))
 	if err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ts *TargetStore) DeleteLabel(tgID uint64, label_key string) error {
+	tx, err := ts.db.Begin(true)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	root := tx.Bucket([]byte(ts.rootBucket))
+	tgBkt := root.Bucket([]byte("TargetGroup"))
+	tgiBkt := tgBkt.Bucket([]byte(strconv.FormatUint(tgID, 10)))
+	var label map[string]interface{}
+	json.Unmarshal(tgiBkt.Get([]byte("label")), &label)
+	delete(label, label_key)
+	if buf, err := json.Marshal(label); err != nil {
+		return err
+	} else if err := tgiBkt.Put([]byte("label"), buf); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
