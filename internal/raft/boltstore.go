@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"strconv"
 	"sync"
@@ -82,8 +83,9 @@ func (bs *BoltStorage) Term(i uint64) (uint64, error) {
 	}
 	defer tx.Rollback()
 	entsBkt := tx.Bucket([]byte("entries"))
-
-	ent := entsBkt.Get([]byte(string(i)))
+	buf := make([]byte, binary.MaxVarintLen64)
+	binary.PutUvarint(buf, i)
+	ent := entsBkt.Get(buf)
 	if ent != nil {
 		var e pb.Entry
 		json.Unmarshal(ent, &e)
@@ -95,7 +97,16 @@ func (bs *BoltStorage) Term(i uint64) (uint64, error) {
 
 // LastIndex returns the index of the last entry in the log.
 func (bs *BoltStorage) LastIndex() (uint64, error) {
-	return 0, nil
+	tx, err := bs.db.Begin(true)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	entsBkt := tx.Bucket([]byte("entries"))
+	_, v := entsBkt.Cursor().Last()
+	var lastEntry pb.Entry
+	json.Unmarshal(v, &lastEntry)
+	return lastEntry.Index, nil
 }
 
 // FirstIndex returns the index of the first log entry that is
@@ -103,7 +114,16 @@ func (bs *BoltStorage) LastIndex() (uint64, error) {
 // into the latest Snapshot; if storage only contains the dummy entry the
 // first log entry is not available).
 func (bs *BoltStorage) FirstIndex() (uint64, error) {
-	return 0, nil
+	tx, err := bs.db.Begin(true)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	entsBkt := tx.Bucket([]byte("entries"))
+	_, v := entsBkt.Cursor().First()
+	var firstEntry pb.Entry
+	json.Unmarshal(v, &firstEntry)
+	return firstEntry.Index, nil
 }
 
 // Snapshot returns the most recent snapshot.
